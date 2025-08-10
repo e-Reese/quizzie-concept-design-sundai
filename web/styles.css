@@ -2,6 +2,7 @@
     --max: 900px;
     --correct-color: #4CAF50;
     --incorrect-color: #F44336;
+    --primary-color: #2196F3;
 }
 
 * {
@@ -68,6 +69,12 @@ main {
     cursor: pointer;
     font-weight: 600;
     white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
 }
 
 .btn.small {
@@ -75,9 +82,15 @@ main {
     font-size: 0.9em;
 }
 
+.btn.primary {
+    background-color: var(--primary-color);
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+}
+
 .btn:disabled {
     opacity: .5;
     cursor: not-allowed;
+    transform: none;
 }
 
 input[type=text] {
@@ -116,7 +129,7 @@ input[type=text] {
 
 .option-row {
     display: grid;
-    grid-template-columns: 28px 28px 24px 1fr;
+    grid-template-columns: 28px 28px 1fr;
     align-items: center;
     gap: 12px;
     margin: 8px 0;
@@ -131,13 +144,14 @@ input[type=text] {
 }
 
 .option-row.correct {
-    background-color: rgba(76, 175, 80, 0.15);
-    border-left: 3px solid var(--correct-color);
+    background-color: rgba(76, 175, 80, 0.2);
+    border-left: 4px solid var(--correct-color);
+    font-weight: 500;
 }
 
 .option-row.incorrect {
-    background-color: rgba(244, 67, 54, 0.15);
-    border-left: 3px solid var(--incorrect-color);
+    background-color: rgba(244, 67, 54, 0.2);
+    border-left: 4px solid var(--incorrect-color);
 }
 
 .question-row {
@@ -176,9 +190,6 @@ input[type=text] {
         margin-left: 14px;
     }
 }
-
-
-
 
 /* Right-side share panel */
 .share-panel {
@@ -259,6 +270,7 @@ input[type="radio"] {
     border-radius: 8px;
     font-weight: 500;
     text-align: center;
+    animation: fadeIn 0.5s ease;
 }
 
 .correct-message {
@@ -271,4 +283,34 @@ input[type="radio"] {
     background-color: rgba(244, 67, 54, 0.15);
     color: #c62828;
     border: 1px solid #ef9a9a;
+}
+
+/* Navigation buttons styling */
+.navigation-buttons {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 20px;
+    gap: 12px;
+}
+
+.navigation-buttons .btn {
+    min-width: 120px;
+}
+
+.navigation-buttons .btn.primary {
+    min-width: 140px;
+    font-size: 1.05em;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

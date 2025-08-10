@@ -1,7 +1,14 @@
 async function fetchJSON(url, options) {
+  console.log(`[DEBUG API] Fetching: ${url}`, options);
   const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error(`[DEBUG API] Error response: ${errorText}`);
+    throw new Error(errorText);
+  }
+  const data = await res.json();
+  console.log(`[DEBUG API] Response:`, data);
+  return data;
 }
 
 const params = new URLSearchParams(location.search);
@@ -14,22 +21,42 @@ const main = document.getElementById("main");
 
 // Track if the user has submitted an answer for the current question
 let userHasSubmitted = false;
+// Track if feedback is currently being shown
+let showingFeedback = false;
+// Track the currently selected option
+let selectedOption = null;
+// Store the current question data
+let currentQuestionData = null;
+// Store the quiz data
+let quizData = null;
 
-function _makeOptionRow(letter, label, option, countText) {
+function _makeOptionRow(letter, label, option) {
   const row = document.createElement("div"); row.className = "option-row";
-  const circle = document.createElement("span"); circle.className = "circle"; circle.onclick = async () => { await fetchJSON(`/api/activations/${activation}/choose`, { method: "POST", body: JSON.stringify({ option, user: USER_ID }) }); userHasSubmitted = true; poll(); };
+  const circle = document.createElement("span"); circle.className = "circle";
+  circle.onclick = () => {
+    selectedOption = option;
+    userHasSubmitted = true;
+    showingFeedback = false;
+    document.querySelectorAll('.option-row').forEach(el => el.classList.remove('selected'));
+    row.classList.add('selected');
+    renderQuestion(currentQuestionData);
+  };
   const l = document.createElement("span"); l.textContent = letter;
   const t = document.createElement("span"); t.textContent = label;
-  const c = document.createElement("span"); c.className = "muted"; c.textContent = countText || "";
 
-  row.append(circle, l, t, c);
+  row.append(circle, l, t);
   return row;
 }
 
-async function poll() {
+async function loadQuestionData() {
   if (activation) {
-    const data = await fetchJSON(`/api/activations/${activation}`);
-    renderQuestion(data, data.options, data.showResults, data.showCorrectAnswer);
+    console.log("[DEBUG] Loading question data for ID:", activation);
+    console.log("[DEBUG] User ID:", USER_ID);
+    const data = await fetchJSON(`/api/activations/${activation}?user=${USER_ID}`);
+    console.log("[DEBUG] Received question data:", data);
+    currentQuestionData = data;
+    renderQuestion(data);
+    return data;
   } else if (quiz) {
     const data = await fetchJSON(`/api/display/${quiz}`);
     main.innerHTML = "";
@@ -42,7 +69,7 @@ async function poll() {
         const row = document.createElement("div"); row.className = "option-row";
 
         // Apply styling based on correctness if the user has selected this option
-        if (o.isUserSelection && q.userVote) {
+        if (o.isUserSelection && q.userVote && showingFeedback) {
           if (o.isCorrect) {
             row.classList.add("correct");
           } else {
@@ -50,7 +77,7 @@ async function poll() {
           }
         }
         // Highlight the correct answer if the user has submitted an answer
-        else if (q.userVote && o.isCorrect) {
+        else if (q.userVote && o.isCorrect && showingFeedback) {
           row.classList.add("correct");
         }
 
@@ -69,16 +96,15 @@ async function poll() {
 
         const l = document.createElement("span"); l.textContent = o.letter;
         const t = document.createElement("span"); t.textContent = o.label;
-        const c = document.createElement("span"); c.className = "muted"; c.textContent = `${o.count}/${o.total}`;
 
-        // Add feedback icon if user has submitted an answer
-        if (o.isUserSelection && q.userVote) {
+        // Add feedback icon if user has submitted an answer and feedback is shown
+        if (o.isUserSelection && q.userVote && showingFeedback) {
           const feedback = document.createElement("span");
           feedback.className = "feedback-icon";
           feedback.textContent = o.isCorrect ? "✓" : "✗";
-          row.append(circle, l, t, feedback, c);
+          row.append(circle, l, t, feedback);
         } else {
-          row.append(circle, l, t, c);
+          row.append(circle, l, t);
         }
 
         list.append(row);
@@ -88,7 +114,11 @@ async function poll() {
   }
 }
 
-function renderQuestion(activationData, optionsData, showResults) {
+function renderQuestion(activationData) {
+  if (!activationData) return;
+
+  const optionsData = activationData.options;
+  const showResults = activationData.showResults;
   main.innerHTML = "";
   const header = document.createElement("div");
   const h = document.createElement("h2"); h.textContent = activationData.question.text; header.append(h);
@@ -103,8 +133,8 @@ function renderQuestion(activationData, optionsData, showResults) {
     qr.src = `/api/qr?url=${encodeURIComponent(url)}&format=svg`;
     urlText.textContent = url;
   };
-  
-  const urlText = document.createElement("div"); 
+
+  const urlText = document.createElement("div");
   urlText.className = "muted hint";
   share.append(qr, urlText);
   header.append(share);
@@ -116,59 +146,86 @@ function renderQuestion(activationData, optionsData, showResults) {
     const row = document.createElement("div");
     row.className = "option-row";
 
-    // Apply styling based on correctness if the user has submitted an answer
-    if (activationData.userVote) {
-      if (o.isUserSelection) {
-        row.classList.add(o.isCorrect ? "correct" : "incorrect");
+    // Apply styling based on correctness if the user has submitted an answer and feedback is shown
+    if (showingFeedback && selectedOption) {
+      console.log("[DEBUG] Applying feedback styling for option:", o.option);
+      console.log("[DEBUG] Selected option:", selectedOption);
+      console.log("[DEBUG] Option is correct:", o.isCorrect);
+
+      const isSelected = o.option === selectedOption;
+
+      if (isSelected) {
+        // If user selected this option
+        if (o.isCorrect) {
+          // Correct answer selected by user
+          console.log("[DEBUG] User selected correct answer");
+          row.classList.add("correct");
+        } else {
+          // Incorrect answer selected by user
+          console.log("[DEBUG] User selected incorrect answer");
+          row.classList.add("incorrect");
+        }
         row.classList.add("selected");
       } else if (o.isCorrect) {
+        // This is the correct answer but user didn't select it
+        console.log("[DEBUG] Highlighting correct answer not selected by user");
         row.classList.add("correct");
       }
+    } else if (o.option === selectedOption) {
+      // Just show selection without correctness feedback
+      console.log("[DEBUG] Showing Selection without correctness");
+      row.classList.add("selected");
     }
 
     const circle = document.createElement("span");
     circle.className = "circle";
-    circle.onclick = async () => {
-      await fetchJSON(`/api/activations/${activation}/choose`, {
-        method: "POST",
-        body: JSON.stringify({ option: o.option, user: USER_ID })
-      });
+    circle.onclick = () => {
+      selectedOption = o.option;
       document.querySelectorAll('.option-row').forEach(el => el.classList.remove('selected'));
       row.classList.add('selected');
       userHasSubmitted = true;
-      poll();
+      showingFeedback = false; // Reset feedback state when a new answer is selected
+      renderQuestion(currentQuestionData);
     };
 
     const l = document.createElement("span"); l.textContent = o.letter;
     const t = document.createElement("span"); t.textContent = o.label;
-    const c = document.createElement("span"); c.className = "muted"; c.textContent = showResults ? `${o.count}/${o.total}` : "";
 
-    // Add feedback icon if user has submitted an answer
-    if (activationData.userVote && o.isUserSelection) {
+    // Add feedback icon if user has submitted an answer and feedback is shown
+    if (selectedOption === o.option && showingFeedback) {
       const feedback = document.createElement("span");
       feedback.className = "feedback-icon";
       feedback.textContent = o.isCorrect ? "✓" : "✗";
-      row.append(circle, l, t, feedback, c);
+      row.append(circle, l, t, feedback);
     } else {
-      row.append(circle, l, t, c);
+      row.append(circle, l, t);
     }
 
     options.append(row);
   });
   main.append(options);
 
-  // Add feedback message if user has submitted an answer
-  if (activationData.userVote) {
-    const userOption = optionsData.find(o => o.isUserSelection);
+  // Add feedback message if user has submitted an answer and feedback is shown
+  if (selectedOption && showingFeedback) {
+    console.log("[DEBUG] Adding feedback message");
+    console.log("[DEBUG] Selected option:", selectedOption);
+    console.log("[DEBUG] Options data:", optionsData);
+
+    const userOption = optionsData.find(o => o.option === selectedOption);
+    console.log("[DEBUG] User selected option:", userOption);
+
     if (userOption) {
       const feedbackMsg = document.createElement("div");
       feedbackMsg.className = "feedback-message";
 
       if (userOption.isCorrect) {
+        console.log("[DEBUG] User's answer is correct");
         feedbackMsg.textContent = "Correct! Well done!";
         feedbackMsg.classList.add("correct-message");
       } else {
+        console.log("[DEBUG] User's answer is incorrect");
         const correctOption = optionsData.find(o => o.isCorrect);
+        console.log("[DEBUG] Correct option:", correctOption);
         feedbackMsg.textContent = `Incorrect. The correct answer is ${correctOption ? correctOption.letter + ': ' + correctOption.label : 'not available'}.`;
         feedbackMsg.classList.add("incorrect-message");
       }
@@ -177,53 +234,135 @@ function renderQuestion(activationData, optionsData, showResults) {
     }
   }
 
-  // Navigation across questions of the same quiz
+  // Navigation and action buttons
   if (activationData.quiz) {
-    const nav = document.createElement("div"); nav.style.display = "flex"; nav.style.gap = "8px"; nav.style.marginTop = "12px";
-    const prev = document.createElement("button"); prev.className = "btn"; prev.textContent = "Prev";
-    const next = document.createElement("button"); next.className = "btn"; next.textContent = "Next";
-    const showCorrectBtn = document.createElement("button"); showCorrectBtn.className = "btn";
-    showCorrectBtn.textContent = showCorrectAnswer ? "Hide Correct Answer" : "Show Correct Answer";
+    const nav = document.createElement("div");
+    nav.className = "navigation-buttons";
 
-    prev.onclick = () => navigateSibling(activationData.quiz, activationData.question.question, -1, !!showResults, !!showCorrectAnswer);
-    next.onclick = () => navigateSibling(activationData.quiz, activationData.question.question, 1, !!showResults, !!showCorrectAnswer);
-    showCorrectBtn.onclick = async () => {
-      if (showCorrectAnswer) {
-        await fetchJSON(`/api/activations/${activation}/hidecorrect`, { method: "POST" });
-      } else {
-        await fetchJSON(`/api/activations/${activation}/showcorrect`, { method: "POST" });
+    // Check Answer button (only visible when user has submitted an answer and feedback is not shown)
+    const checkAnswerBtn = document.createElement("button");
+    checkAnswerBtn.className = "btn primary";
+    checkAnswerBtn.textContent = "Check Answer";
+    checkAnswerBtn.style.display = userHasSubmitted && !showingFeedback ? "block" : "none";
+    checkAnswerBtn.onclick = async () => {
+      console.log("[DEBUG] Check Answer button clicked");
+      console.log("[DEBUG] User has submitted answer:", userHasSubmitted);
+      console.log("[DEBUG] Selected option:", selectedOption);
+
+      if (selectedOption) {
+        try {
+          // Direct evaluation of the selected answer against the correct answer
+          const evaluationResult = await fetchJSON(`/api/questions/${activationData.question.question}/evaluate`, {
+            method: "POST",
+            body: JSON.stringify({ option: selectedOption })
+          });
+          console.log("[DEBUG] Evaluation result:", evaluationResult);
+
+          // Update the current question data with the evaluation result
+          if (evaluationResult && typeof evaluationResult.isCorrect === 'boolean') {
+            // Update the option in the current data
+            currentQuestionData.options.forEach(o => {
+              if (o.option === selectedOption) {
+                o.isCorrect = evaluationResult.isCorrect;
+              }
+            });
+          }
+        } catch (error) {
+          console.error("[DEBUG] Error evaluating answer:", error);
+        }
       }
-      poll();
+
+      showingFeedback = true;
+      renderQuestion(currentQuestionData);
     };
 
-    nav.append(prev, next, showCorrectBtn); main.append(nav);
+    // Next button
+    const next = document.createElement("button");
+    next.className = "btn primary";
+    next.textContent = "Next";
+
+    // If user has submitted but not seen feedback, next button shows feedback first
+    if (userHasSubmitted && !showingFeedback) {
+      next.textContent = "Check & Next";
+      next.onclick = async () => {
+        // First check the answer
+        if (selectedOption) {
+          try {
+            const evaluationResult = await fetchJSON(`/api/questions/${activationData.question.question}/evaluate`, {
+              method: "POST",
+              body: JSON.stringify({ option: selectedOption })
+            });
+            console.log("[DEBUG] Evaluation result from Next button:", evaluationResult);
+
+            // Update the current question data with the evaluation result
+            if (evaluationResult && typeof evaluationResult.isCorrect === 'boolean') {
+              // Update the option in the current data
+              currentQuestionData.options.forEach(o => {
+                if (o.option === selectedOption) {
+                  o.isCorrect = evaluationResult.isCorrect;
+                }
+              });
+            }
+          } catch (error) {
+            console.error("[DEBUG] Error evaluating answer from Next button:", error);
+          }
+        }
+
+        showingFeedback = true;
+        renderQuestion(currentQuestionData);
+
+        // After a short delay, navigate to the next question
+        setTimeout(() => {
+          navigateSibling(activationData.quiz, activationData.question.question, 1, !!showResults, true); // Always show correct answers
+        }, 1500);
+      };
+    } else {
+      // Regular next button behavior
+      next.onclick = () => navigateSibling(activationData.quiz, activationData.question.question, 1, !!showResults, true); // Always show correct answers
+    }
+
+    // Add check answer button if applicable
+    if (userHasSubmitted && !showingFeedback) {
+      nav.append(checkAnswerBtn);
+    }
+
+    nav.append(next);
+    main.append(nav);
   }
 }
 
-async function navigateSibling(quizId, currentQuestionId, delta, shouldShowResults) {
-  const data = await fetchJSON(`/api/display/${quizId}`);
-  const idx = data.questions.findIndex(q => q.question === currentQuestionId);
+async function navigateSibling(quizId, currentQuestionId, delta, shouldShowResults, shouldShowCorrectAnswer) {
+  // If we don't have the quiz data yet, fetch it
+  if (!quizData) {
+    quizData = await fetchJSON(`/api/display/${quizId}`);
+  }
+
+  const idx = quizData.questions.findIndex(q => q.question === currentQuestionId);
   if (idx === -1) return;
-  const target = data.questions[(idx + data.questions.length + delta) % data.questions.length];
+
+  // Get the next question in the quiz
+  const target = quizData.questions[(idx + quizData.questions.length + delta) % quizData.questions.length];
   let actId = target.activation;
+
   if (!actId) {
     // auto-activate target question so it can accept votes
     const resp = await fetchJSON(`/api/questions/${target.question}/activate`, { method: "POST" });
     actId = (resp && (resp.activation?.activation || resp.activation || resp.id || resp.Activation || resp.Activate)) || undefined;
   }
+
   if (!actId) return;
-  if (shouldShowResults) {
-    await fetchJSON(`/api/activations/${actId}/show`, { method: "POST" });
-  }
-  if (shouldShowCorrectAnswer) {
-    await fetchJSON(`/api/activations/${actId}/showcorrect`, { method: "POST" });
-  }
+
+  // Reset state for the new question
+  selectedOption = null;
+  userHasSubmitted = false;
+  showingFeedback = false;
+
+  // Navigate to the new question
   location.href = `/question.html?activation=${actId}`;
-  userHasSubmitted = false; // Reset submission state for new question
 }
 
 async function load() {
-  await poll();
+  await loadQuestionData();
 }
 
 load();

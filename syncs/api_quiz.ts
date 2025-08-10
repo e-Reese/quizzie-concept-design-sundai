@@ -281,12 +281,15 @@ export function makeApiQuizSyncs(
     });
 
     const GetActivation = (
-        { activation, request, payload, question, showResults, showCorrectAnswer }: Vars,
-    ) => ({
+        { activation, request, payload, question, showResults, showCorrectAnswer, user }: Vars,
+    ) => {
+        console.log("[DEBUG] GetActivation sync triggered with:", { activation, request, showCorrectAnswer });
+        return {
         when: actions([API.request, {
             method: "GET",
             path: "/activations/:activation",
             activation,
+            user,
         }, { request }]),
         where: (frames: Frames) =>
             frames
@@ -306,15 +309,22 @@ export function makeApiQuizSyncs(
                         activation: frame[activation] as string,
                     });
                     const byOption = new Map(counts.map((c) => [c.option, c]));
-                    const correctOption = Quiz._getCorrectAnswer({
+                    // Get correct answer for this question
+                    const correctAnswerResult = Quiz._getCorrectAnswer({
                         question: frame[question] as string,
-                    })[0]?.option;
+                    });
+                    console.log("[DEBUG] Correct answer query result:", correctAnswerResult);
+                    const correctOption = correctAnswerResult[0]?.option;
+                    console.log("[DEBUG] Correct option for question:", correctOption);
                     
                     // Get the current user's vote
-                    const userVote = Activation._getUserVote({
+                    const userVoteResult = Activation._getUserVote({
                         activation: frame[activation] as string,
-                        user: frame.user as string
-                    })[0]?.option;
+                        user: frame[user] as string
+                    });
+                    console.log("[DEBUG] User vote query result:", userVoteResult);
+                    const userVote = userVoteResult[0]?.option;
+                    console.log("[DEBUG] User selected option:", userVote);
                     const payloadValue = {
                         activation: frame[activation] as string,
                         quiz: q?.quiz,
@@ -325,7 +335,11 @@ export function makeApiQuizSyncs(
                         showResults: frame[showResults] as boolean,
                         correctOption,
                         userVote,
-                        options: options.map((o, idx) => ({
+                        options: options.map((o, idx) => {
+                            const isCorrect = o.option === correctOption;
+                            const isUserSelection = o.option === userVote;
+                            console.log(`[DEBUG] Option ${o.option}: isCorrect=${isCorrect}, isUserSelection=${isUserSelection}`);
+                            return ({
                             option: o.option,
                             label: o.label,
                             letter: String.fromCharCode(65 + idx),
@@ -334,7 +348,7 @@ export function makeApiQuizSyncs(
                                 (counts[0]?.total ?? 0),
                             isCorrect: o.option === correctOption,
                             isUserSelection: o.option === userVote,
-                        })),
+                        });}),
                     };
                     return {
                         ...frame,
@@ -345,7 +359,8 @@ export function makeApiQuizSyncs(
             request,
             output: payload,
         }]),
-    });
+    };
+};
 
     const GetDisplay = ({ quiz, request, payload }: Vars) => ({
         when: actions([
@@ -408,18 +423,21 @@ export function makeApiQuizSyncs(
     });
 
     // Set correct answer for a question
-    const SetCorrectAnswer = ({ question, option, request }: Vars) => ({
-        when: actions([API.request, {
-            method: "POST",
-            path: "/questions/:question/correct",
-            question,
-            option,
-        }, { request }]),
-        then: actions([Quiz.setCorrectAnswer, { question, option }], [
-            API.response,
-            { request, output: { ok: true } },
-        ]),
-    });
+    const SetCorrectAnswer = ({ question, option, request }: Vars) => {
+        console.log("[DEBUG] SetCorrectAnswer sync triggered with:", { question, option });
+        return {
+            when: actions([API.request, {
+                method: "POST",
+                path: "/questions/:question/correct",
+                question,
+                option,
+            }, { request }]),
+            then: actions([Quiz.setCorrectAnswer, { question, option }], [
+                API.response,
+                { request, output: { ok: true, debug: "Correct answer set" } },
+            ]),
+        };
+    };
 
     // Remove correct answer for a question
     const RemoveCorrectAnswer = ({ question, request }: Vars) => ({

@@ -22,19 +22,19 @@ async function load() {
   const clearActivation = () => localStorage.removeItem(aKey);
 
   const controls = document.createElement("div");
-  const toggleActivate = document.createElement("button"); 
+  const toggleActivate = document.createElement("button");
   toggleActivate.className = "btn";
-  
-  const openDisplay = document.createElement("button"); 
-  openDisplay.className = "btn"; 
-  openDisplay.textContent = "overview"; 
+
+  const openDisplay = document.createElement("button");
+  openDisplay.className = "btn";
+  openDisplay.textContent = "overview";
   openDisplay.onclick = () => globalThis.open(`/question.html?quiz=${quiz}`, "_blank");
-  
+
   async function syncActivationButton() {
     const act = getActivation();
     toggleActivate.textContent = act ? "deactivate" : "activate";
   }
-  
+
   toggleActivate.onclick = async () => {
     const act = getActivation();
     if (act) {
@@ -49,10 +49,10 @@ async function load() {
     }
     await syncActivationButton();
   };
-  
+
   controls.append(toggleActivate, openDisplay);
   main.append(controls);
-  
+
   // Set initial button state
   await syncActivationButton();
 
