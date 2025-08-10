@@ -8,16 +8,73 @@ async function load() {
   const main = document.getElementById("main");
   main.innerHTML = "";
   const quizzes = await fetchJSON("/api/quizzes");
-  (quizzes || []).forEach((q) => {
+  for (const q of (quizzes || [])) {
     const row = document.createElement("div");
     row.className = "quiz-row";
+    
+    // Delete button
     const del = document.createElement("span");
-    del.className = "trash"; del.textContent = "🗑️";
-    del.onclick = async () => { await fetchJSON(`/api/quizzes/${q.quiz}`, { method: "DELETE" }); load(); };
-    const a = document.createElement("a"); a.href = `/quiz.html?quiz=${q.quiz}`; a.textContent = q.title; a.style.fontSize = "20px";
-    row.append(del, a);
+    del.className = "trash"; 
+    del.textContent = "🗑️";
+    del.onclick = async () => { 
+      await fetchJSON(`/api/quizzes/${q.quiz}`, { method: "DELETE" }); 
+      load(); 
+    };
+    
+    // Quiz title link
+    const a = document.createElement("a"); 
+    a.href = `/quiz.html?quiz=${q.quiz}`; 
+    a.textContent = q.title; 
+    a.style.marginRight = "10px";
+    
+    // Show/Hide button
+    const showBtn = document.createElement("button");
+    showBtn.className = "btn small";
+    showBtn.style.marginLeft = "10px";
+    
+    // Check activation status
+    const aKey = `activation_quiz_${q.quiz}`;
+    const getActivation = () => localStorage.getItem(aKey);
+    const setActivation = (id) => localStorage.setItem(aKey, id);
+    const clearActivation = () => localStorage.removeItem(aKey);
+    
+    async function updateShowButton() {
+      const act = getActivation();
+      if (!act) {
+        showBtn.textContent = "Show";
+        showBtn.disabled = true;
+        return;
+      }
+      try {
+        const info = await fetchJSON(`/api/activations/${act}`);
+        showBtn.textContent = info.showResults ? "Hide" : "Show";
+        showBtn.disabled = false;
+      } catch (_) {
+        clearActivation();
+        showBtn.textContent = "Show";
+        showBtn.disabled = true;
+      }
+    }
+    
+    showBtn.onclick = async () => {
+      const act = getActivation();
+      if (!act) return;
+      const info = await fetchJSON(`/api/activations/${act}`);
+      if (info.showResults) {
+        await fetchJSON(`/api/activations/${act}/hide`, { method: "POST" });
+      } else {
+        await fetchJSON(`/api/activations/${act}/show`, { method: "POST" });
+        globalThis.open(`/question.html?activation=${act}`, "_blank");
+      }
+      await updateShowButton();
+    };
+    
+    // Initial button state
+    await updateShowButton();
+    
+    row.append(del, a, showBtn);
     main.append(row);
-  });
+  }
 
   const addRow = document.createElement("div"); addRow.className = "quiz-row";
   const plus = document.createElement("button"); plus.className = "btn"; plus.textContent = "+";
