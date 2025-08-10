@@ -27,7 +27,7 @@ async function load() {
   
   const openDisplay = document.createElement("button"); 
   openDisplay.className = "btn"; 
-  openDisplay.textContent = "overview"; 
+  openDisplay.textContent = "preview"; 
   openDisplay.onclick = () => globalThis.open(`/question.html?quiz=${quiz}`, "_blank");
   
   async function syncActivationButton() {
