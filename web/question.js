@@ -56,16 +56,15 @@ function renderQuestion(activationData, optionsData, showResults){
   const shareBaseInput = document.createElement("input"); shareBaseInput.type = "text"; shareBaseInput.placeholder = location.origin; shareBaseInput.value = (localStorage.getItem("quizzie_share_base") || location.origin);
   shareBaseInput.onchange = () => { const v = shareBaseInput.value.trim().replace(/\/$/, ""); localStorage.setItem("quizzie_share_base", v); poll(); };
   const updateQR = () => {
-    const shareBase = (localStorage.getItem("quizzie_share_base") || location.origin).replace(/\/$/, "");
+    const shareBase = location.origin.replace(/\/$/, "");
     const url = `${shareBase}/question.html?activation=${activation}`;
     qr.src = `/api/qr?url=${encodeURIComponent(url)}&format=svg`;
     urlText.textContent = url;
   };
-  const baseRow = document.createElement("div"); baseRow.className = "row";
-  const baseLbl = document.createElement("span"); baseLbl.className = "muted hint"; baseLbl.textContent = "Share base:";
-  baseRow.append(baseLbl, shareBaseInput);
-  const urlText = document.createElement("div"); urlText.className = "muted hint";
-  share.append(qr, urlText, baseRow);
+  
+  const urlText = document.createElement("div"); 
+  urlText.className = "muted hint";
+  share.append(qr, urlText);
   header.append(share);
   updateQR();
   main.append(header);

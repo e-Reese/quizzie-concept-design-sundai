@@ -5,7 +5,22 @@ header { display:flex; justify-content:space-between; align-items:center; paddin
 .brand { font-weight:800; font-size:clamp(24px,4vw,36px); text-decoration:none; color:#000; }
 h1 { font-weight:600; font-size:clamp(18px,3vw,28px); margin:0; }
 main { max-width:var(--max); margin:0 auto; padding:16px; }
-.quiz-row { display:flex; align-items:center; gap:12px; margin:12px 0; flex-wrap: wrap; }
+.quiz-row { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  margin: 12px 0; 
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.quiz-row > span:first-child {
+  margin-right: 4px;
+}
+
+.quiz-row > button {
+  margin-left: 8px;
+}
 .btn { background:#111; color:#fff; padding:8px 14px; border:none; border-radius:8px; cursor:pointer; font-weight:600; white-space: nowrap; }
 .btn.small { padding: 6px 12px; font-size: 0.9em; }
 .btn:disabled { opacity:.5; cursor:not-allowed; }

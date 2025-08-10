@@ -21,16 +21,24 @@ async function load() {
       load(); 
     };
     
-    // Quiz title link
-    const a = document.createElement("a"); 
-    a.href = `/quiz.html?quiz=${q.quiz}`; 
-    a.textContent = q.title; 
-    a.style.marginRight = "10px";
+    // Quiz title (plain text)
+    const titleSpan = document.createElement("span");
+    titleSpan.textContent = q.title;
+    titleSpan.style.flexGrow = "1";
     
-    // Show/Hide button
+    // Edit button
+    const editBtn = document.createElement("button");
+    editBtn.className = "btn small";
+    editBtn.textContent = "Edit";
+    editBtn.style.marginLeft = "10px";
+    editBtn.onclick = () => {
+      window.location.href = `/quiz.html?quiz=${q.quiz}`;
+    };
+    
+    // Show button
     const showBtn = document.createElement("button");
     showBtn.className = "btn small";
-    showBtn.style.marginLeft = "10px";
+    showBtn.textContent = "Show";
     
     // Check activation status
     const aKey = `activation_quiz_${q.quiz}`;
@@ -40,39 +48,21 @@ async function load() {
     
     async function updateShowButton() {
       const act = getActivation();
-      if (!act) {
-        showBtn.textContent = "Show";
-        showBtn.disabled = true;
-        return;
-      }
-      try {
-        const info = await fetchJSON(`/api/activations/${act}`);
-        showBtn.textContent = info.showResults ? "Hide" : "Show";
-        showBtn.disabled = false;
-      } catch (_) {
-        clearActivation();
-        showBtn.textContent = "Show";
-        showBtn.disabled = true;
-      }
+      showBtn.disabled = !act; // Disable if not activated
     }
     
     showBtn.onclick = async () => {
       const act = getActivation();
       if (!act) return;
-      const info = await fetchJSON(`/api/activations/${act}`);
-      if (info.showResults) {
-        await fetchJSON(`/api/activations/${act}/hide`, { method: "POST" });
-      } else {
-        await fetchJSON(`/api/activations/${act}/show`, { method: "POST" });
-        globalThis.open(`/question.html?activation=${act}`, "_blank");
-      }
-      await updateShowButton();
+      // Always show the results and open in a new tab
+      await fetchJSON(`/api/activations/${act}/show`, { method: "POST" });
+      globalThis.open(`/question.html?activation=${act}`, "_blank");
     };
     
     // Initial button state
     await updateShowButton();
     
-    row.append(del, a, showBtn);
+    row.append(del, titleSpan, editBtn, showBtn);
     main.append(row);
   }
 
