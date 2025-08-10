@@ -15,35 +15,26 @@ async function load() {
   const title = document.createElement("div"); title.textContent = data.title; title.className = "muted";
   main.append(title);
 
-  // Quiz-level controls: activate/deactivate and show/hide
+  // Quiz-level controls: activate/deactivate and overview
   const aKey = `activation_quiz_${quiz}`;
   const getActivation = () => localStorage.getItem(aKey);
   const setActivation = (id) => localStorage.setItem(aKey, id);
   const clearActivation = () => localStorage.removeItem(aKey);
 
   const controls = document.createElement("div");
-  const toggleActivate = document.createElement("button"); toggleActivate.className = "btn";
-  const toggleShow = document.createElement("button"); toggleShow.className = "btn";
-  const openDisplay = document.createElement("button"); openDisplay.className = "btn"; openDisplay.textContent = "overview"; openDisplay.onclick = () => globalThis.open(`/question.html?quiz=${quiz}`, "_blank");
-  async function syncButtons() {
+  const toggleActivate = document.createElement("button"); 
+  toggleActivate.className = "btn";
+  
+  const openDisplay = document.createElement("button"); 
+  openDisplay.className = "btn"; 
+  openDisplay.textContent = "overview"; 
+  openDisplay.onclick = () => globalThis.open(`/question.html?quiz=${quiz}`, "_blank");
+  
+  async function syncActivationButton() {
     const act = getActivation();
     toggleActivate.textContent = act ? "deactivate" : "activate";
-    if (!act) {
-      toggleShow.textContent = "show";
-      toggleShow.disabled = true;
-      return;
-    }
-    try {
-      const info = await fetchJSON(`/api/activations/${act}`);
-      toggleShow.textContent = info.showResults ? "hide" : "show";
-      toggleShow.disabled = false;
-    } catch (_) {
-      // activation might have been cleared server-side
-      clearActivation();
-      toggleShow.textContent = "show";
-      toggleShow.disabled = true;
-    }
   }
+  
   toggleActivate.onclick = async () => {
     const act = getActivation();
     if (act) {
@@ -56,22 +47,14 @@ async function load() {
       const id = (resp && (resp.activation?.activation || resp.activation || resp.id || resp.Activation || resp.Activate)) || null;
       if (id) setActivation(String(id));
     }
-    await syncButtons();
+    await syncActivationButton();
   };
-  toggleShow.onclick = async () => {
-    const act = getActivation();
-    if (!act) return;
-    const info = await fetchJSON(`/api/activations/${act}`);
-    if (info.showResults) {
-      await fetchJSON(`/api/activations/${act}/hide`, { method: "POST" });
-    } else {
-      await fetchJSON(`/api/activations/${act}/show`, { method: "POST" });
-      globalThis.open(`/question.html?activation=${act}`, "_blank");
-    }
-    await syncButtons();
-  };
-  controls.append(toggleActivate, toggleShow, openDisplay);
+  
+  controls.append(toggleActivate, openDisplay);
   main.append(controls);
+  
+  // Set initial button state
+  await syncActivationButton();
 
   data.questions.forEach((q) => {
     const row = document.createElement("div"); row.className = "question";
