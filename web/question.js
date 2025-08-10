@@ -46,7 +46,7 @@ async function poll() {
   }
 }
 
-function renderQuestion(activationData, optionsData, showResults){
+function renderQuestion(activationData, optionsData, showResults) {
   main.innerHTML = "";
   const header = document.createElement("div");
   const h = document.createElement("h2"); h.textContent = activationData.question.text; header.append(h);
@@ -72,7 +72,7 @@ function renderQuestion(activationData, optionsData, showResults){
   const options = document.createElement("div"); options.className = "options";
   optionsData.forEach((o) => {
     const row = document.createElement("div"); row.className = "option-row";
-    const circle = document.createElement("span"); circle.className = "circle"; circle.onclick = async () => { await fetchJSON(`/api/activations/${activation}/choose`, { method: "POST", body: JSON.stringify({ option: o.option, user: USER_ID }) }); document.querySelectorAll('.option-row').forEach(el=>el.classList.remove('selected')); row.classList.add('selected'); poll(); };
+    const circle = document.createElement("span"); circle.className = "circle"; circle.onclick = async () => { await fetchJSON(`/api/activations/${activation}/choose`, { method: "POST", body: JSON.stringify({ option: o.option, user: USER_ID }) }); document.querySelectorAll('.option-row').forEach(el => el.classList.remove('selected')); row.classList.add('selected'); poll(); };
     const l = document.createElement("span"); l.textContent = o.letter;
     const t = document.createElement("span"); t.textContent = o.label;
     const c = document.createElement("span"); c.className = "muted"; c.textContent = showResults ? `${o.count}/${o.total}` : "";
@@ -91,13 +91,13 @@ function renderQuestion(activationData, optionsData, showResults){
   }
 }
 
-async function navigateSibling(quizId, currentQuestionId, delta, shouldShowResults){
+async function navigateSibling(quizId, currentQuestionId, delta, shouldShowResults) {
   const data = await fetchJSON(`/api/display/${quizId}`);
   const idx = data.questions.findIndex(q => q.question === currentQuestionId);
   if (idx === -1) return;
   const target = data.questions[(idx + data.questions.length + delta) % data.questions.length];
   let actId = target.activation;
-  if (!actId){
+  if (!actId) {
     // auto-activate target question so it can accept votes
     const resp = await fetchJSON(`/api/questions/${target.question}/activate`, { method: "POST" });
     actId = (resp && (resp.activation?.activation || resp.activation || resp.id || resp.Activation || resp.Activate)) || undefined;
