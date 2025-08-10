@@ -5,6 +5,7 @@ export interface ActivationRecord {
     question: string;
     isActive: boolean;
     showResults: boolean;
+    showCorrectAnswer: boolean;
 }
 export interface VoteRecord {
     activation: string;
@@ -26,6 +27,7 @@ export class ActivationConcept {
             question,
             isActive: true,
             showResults: false,
+            showCorrectAnswer: false,
         };
         this.activations.set(id, record);
         if (!this.byQuestion.has(question)) {
@@ -53,6 +55,18 @@ export class ActivationConcept {
         return { activation };
     }
 
+    showCorrectAnswer({ activation }: { activation: string }): { activation: string } {
+        const rec = this.activations.get(activation);
+        if (rec) rec.showCorrectAnswer = true;
+        return { activation };
+    }
+
+    hideCorrectAnswer({ activation }: { activation: string }): { activation: string } {
+        const rec = this.activations.get(activation);
+        if (rec) rec.showCorrectAnswer = false;
+        return { activation };
+    }
+
     choose(
         { activation, user, option }: {
             activation: string;
@@ -69,7 +83,7 @@ export class ActivationConcept {
 
     _getByQuestion(
         { question }: { question: string },
-    ): { activation: string; isActive: boolean; showResults: boolean }[] {
+    ): { activation: string; isActive: boolean; showResults: boolean; showCorrectAnswer: boolean }[] {
         const ids = this.byQuestion.get(question) ?? new Set();
         return [...ids].map((id) => {
             const a = this.activations.get(id)!;
@@ -77,6 +91,7 @@ export class ActivationConcept {
                 activation: a.activation,
                 isActive: a.isActive,
                 showResults: a.showResults,
+                showCorrectAnswer: a.showCorrectAnswer,
             };
         });
     }
@@ -111,6 +126,7 @@ export class ActivationConcept {
         question: string;
         isActive: boolean;
         showResults: boolean;
+        showCorrectAnswer: boolean;
     }[] {
         const rec = this.activations.get(activation);
         return rec ? [{ ...rec }] : [];

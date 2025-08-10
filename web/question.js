@@ -21,13 +21,15 @@ function _makeOptionRow(letter, label, option, countText) {
   const l = document.createElement("span"); l.textContent = letter;
   const t = document.createElement("span"); t.textContent = label;
   const c = document.createElement("span"); c.className = "muted"; c.textContent = countText || "";
-  row.append(circle, l, t, c); return row;
+
+  row.append(circle, l, t, c);
+  return row;
 }
 
 async function poll() {
   if (activation) {
     const data = await fetchJSON(`/api/activations/${activation}`);
-    renderQuestion(data, data.options, data.showResults);
+    renderQuestion(data, data.options, data.showResults, data.showCorrectAnswer);
   } else if (quiz) {
     const data = await fetchJSON(`/api/display/${quiz}`);
     main.innerHTML = "";
@@ -181,9 +183,21 @@ function renderQuestion(activationData, optionsData, showResults) {
     const nav = document.createElement("div"); nav.style.display = "flex"; nav.style.gap = "8px"; nav.style.marginTop = "12px";
     const prev = document.createElement("button"); prev.className = "btn"; prev.textContent = "Prev";
     const next = document.createElement("button"); next.className = "btn"; next.textContent = "Next";
-    prev.onclick = () => navigateSibling(activationData.quiz, activationData.question.question, -1, !!showResults);
-    next.onclick = () => navigateSibling(activationData.quiz, activationData.question.question, 1, !!showResults);
-    nav.append(prev, next); main.append(nav);
+    const showCorrectBtn = document.createElement("button"); showCorrectBtn.className = "btn";
+    showCorrectBtn.textContent = showCorrectAnswer ? "Hide Correct Answer" : "Show Correct Answer";
+
+    prev.onclick = () => navigateSibling(activationData.quiz, activationData.question.question, -1, !!showResults, !!showCorrectAnswer);
+    next.onclick = () => navigateSibling(activationData.quiz, activationData.question.question, 1, !!showResults, !!showCorrectAnswer);
+    showCorrectBtn.onclick = async () => {
+      if (showCorrectAnswer) {
+        await fetchJSON(`/api/activations/${activation}/hidecorrect`, { method: "POST" });
+      } else {
+        await fetchJSON(`/api/activations/${activation}/showcorrect`, { method: "POST" });
+      }
+      poll();
+    };
+
+    nav.append(prev, next, showCorrectBtn); main.append(nav);
   }
 }
 
@@ -201,6 +215,9 @@ async function navigateSibling(quizId, currentQuestionId, delta, shouldShowResul
   if (!actId) return;
   if (shouldShowResults) {
     await fetchJSON(`/api/activations/${actId}/show`, { method: "POST" });
+  }
+  if (shouldShowCorrectAnswer) {
+    await fetchJSON(`/api/activations/${actId}/showcorrect`, { method: "POST" });
   }
   location.href = `/question.html?activation=${actId}`;
   userHasSubmitted = false; // Reset submission state for new question

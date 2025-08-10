@@ -18,6 +18,9 @@ state
         an option String
         a question String
         a label String
+    a set of CorrectAnswers with
+        a question String
+        an option String
 
 actions
     createQuiz (quiz: String, owner: String, title: String) : (quiz: String)
@@ -44,6 +47,12 @@ actions
     renameOption (option: String, label: String) : (option: String)
         update option label
         return option
+    setCorrectAnswer (question: String, option: String) : (question: String)
+        set the correct answer for a question
+        return question
+    removeCorrectAnswer (question: String) : (question: String)
+        remove the correct answer for a question
+        return question
 
 queries
     _getQuizzesByOwner (owner: String) : (quiz: String, title: String)
@@ -54,14 +63,15 @@ queries
         list questions for quiz
     _getOptions (question: String) : (option: String, label: String)
         list options for question
+    _getCorrectAnswer (question: String) : (option: String)
+        get the correct answer for a question if set
 
 operational principle
     after createQuiz (quiz: q, owner: u, title: "My first quiz") : (quiz: q)
     and addQuestion (question: s1, quiz: q, text: "What day is it today?") : (question: s1)
     and addOption (option: o1, question: s1, label: "Sunday") : (option: o1)
     and addOption (option: o2, question: s1, label: "Monday") : (option: o2)
-    then _getOptions (question: s1) lists o1 and o2 with their labels
+    and setCorrectAnswer (question: s1, option: o1) : (question: s1)
+    then _getCorrectAnswer (question: s1) returns o1
 
 </concept_spec>
-
-

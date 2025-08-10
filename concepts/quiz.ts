@@ -15,11 +15,16 @@ export interface OptionRecord {
     question: string;
     label: string;
 }
+export interface CorrectAnswerRecord {
+    question: string;
+    option: string;
+}
 
 export class QuizConcept {
     quizzes: Map<string, QuizRecord> = new Map();
     questions: Map<string, QuestionRecord> = new Map();
     options: Map<string, OptionRecord> = new Map();
+    correctAnswers: Map<string, string> = new Map(); // question -> option
     byOwner: Map<string, Set<string>> = new Map();
     byQuizQuestions: Map<string, Set<string>> = new Map();
     byQuestionOptions: Map<string, Set<string>> = new Map();
@@ -68,6 +73,7 @@ export class QuizConcept {
             for (const oid of oset) this.deleteOption({ option: oid });
             this.byQuizQuestions.get(record.quiz)?.delete(question);
             this.questions.delete(question);
+            this.correctAnswers.delete(question);
         }
         return { question };
     }
@@ -101,6 +107,10 @@ export class QuizConcept {
         if (record) {
             this.byQuestionOptions.get(record.question)?.delete(option);
             this.options.delete(option);
+            // If this option was set as a correct answer, remove it
+            if (this.correctAnswers.get(record.question) === option) {
+                this.correctAnswers.delete(record.question);
+            }
         }
         return { option };
     }
@@ -111,6 +121,25 @@ export class QuizConcept {
         const record = this.options.get(option);
         if (record) record.label = label;
         return { option };
+    }
+
+    setCorrectAnswer(
+        { question, option }: { question: string; option: string },
+    ): { question: string } {
+        // Verify that the question and option exist and are related
+        const questionRecord = this.questions.get(question);
+        const optionRecord = this.options.get(option);
+        if (questionRecord && optionRecord && optionRecord.question === question) {
+            this.correctAnswers.set(question, option);
+        }
+        return { question };
+    }
+
+    removeCorrectAnswer(
+        { question }: { question: string },
+    ): { question: string } {
+        this.correctAnswers.delete(question);
+        return { question };
     }
 
     // Queries and data aggregations
@@ -151,6 +180,13 @@ export class QuizConcept {
         });
     }
 
+    _getCorrectAnswer(
+        { question }: { question: string },
+    ): { option: string }[] {
+        const option = this.correctAnswers.get(question);
+        return option ? [{ option }] : [];
+    }
+
     _getQuestion(
         { question }: { question: string },
     ): { question: string; text: string; quiz: string }[] {
@@ -170,12 +206,15 @@ export class QuizConcept {
                 const options = [
                     ...(this.byQuestionOptions.get(qid) ?? new Set()),
                 ].map((oid) => this.options.get(oid)!);
+                const correctOption = this.correctAnswers.get(qid);
                 return {
                     question: qs.question,
                     text: qs.text,
+                    correctOption,
                     options: options.map((o) => ({
                         option: o.option,
                         label: o.label,
+                        isCorrect: o.option === correctOption,
                     })),
                 };
             });

@@ -11,6 +11,7 @@ state
         a question String
         a isActive Boolean
         a showResults Boolean
+        a showCorrectAnswer Boolean
     a set of Votes with
         an activation String
         a user String
@@ -29,12 +30,18 @@ actions
     hide (activation: String) : (activation: String)
         set showResults false
         return activation
+    showCorrectAnswer (activation: String) : (activation: String)
+        set showCorrectAnswer true
+        return activation
+    hideCorrectAnswer (activation: String) : (activation: String)
+        set showCorrectAnswer false
+        return activation
     choose (activation: String, user: String, option: String) : (activation: String)
         record that user chose option in activation, replacing any prior choice for same user
         return activation
 
 queries
-    _getByQuestion (question: String) : (activation: String, isActive: Boolean, showResults: Boolean)
+    _getByQuestion (question: String) : (activation: String, isActive: Boolean, showResults: Boolean, showCorrectAnswer: Boolean)
         return any activations for question
     _getVotes (activation: String) : (option: String, count: Number, total: Number)
         return counts per option and total voters
@@ -45,8 +52,7 @@ operational principle
     after activate (activation: a, question: q) : (activation: a)
     and choose (activation: a, user: u1, option: o1) : (activation: a)
     and choose (activation: a, user: u2, option: o2) : (activation: a)
-    then _getVotes (activation: a) reports counts where total is 2
+    and showCorrectAnswer (activation: a) : (activation: a)
+    then _getByQuestion (question: q) shows showCorrectAnswer is true
 
 </concept_spec>
-
-

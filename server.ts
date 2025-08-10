@@ -148,6 +148,22 @@ app.post(
     "/api/activations/:activation/choose",
     (req, res) => handle("POST", "/activations/:activation/choose", req, res),
 );
+app.post(
+    "/api/activations/:activation/showcorrect",
+    (req, res) => handle("POST", "/activations/:activation/showcorrect", req, res),
+);
+app.post(
+    "/api/activations/:activation/hidecorrect",
+    (req, res) => handle("POST", "/activations/:activation/hidecorrect", req, res),
+);
+app.post(
+    "/api/questions/:question/correct",
+    (req, res) => handle("POST", "/questions/:question/correct", req, res),
+);
+app.delete(
+    "/api/questions/:question/correct",
+    (req, res) => handle("DELETE", "/questions/:question/correct", req, res),
+);
 app.get(
     "/api/activations/:activation",
     (req, res) => handle("GET", "/activations/:activation", req, res),

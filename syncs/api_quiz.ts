@@ -281,7 +281,7 @@ export function makeApiQuizSyncs(
     });
 
     const GetActivation = (
-        { activation, request, payload, question, showResults }: Vars,
+        { activation, request, payload, question, showResults, showCorrectAnswer }: Vars,
     ) => ({
         when: actions([API.request, {
             method: "GET",
@@ -293,6 +293,7 @@ export function makeApiQuizSyncs(
                 .query(Activation._getActivation, { activation }, {
                     question,
                     showResults,
+                    showCorrectAnswer,
                 })
                 .map((frame) => {
                     const q = Quiz._getQuestion({
@@ -371,6 +372,9 @@ export function makeApiQuizSyncs(
                                 activation: active.activation,
                             })
                             : [];
+                        const correctOption = Quiz._getCorrectAnswer({
+                            question: qs.question,
+                        })[0]?.option;
                         const byOption = new Map(
                             votes.map((v) => [v.option, v]),
                         );
@@ -389,6 +393,8 @@ export function makeApiQuizSyncs(
                             text: qs.text,
                             activation: active?.activation,
                             showResults: active?.showResults ?? false,
+                            showCorrectAnswer: active?.showCorrectAnswer ?? false,
+                            correctOption,
                             options,
                         };
                     }),
@@ -399,6 +405,59 @@ export function makeApiQuizSyncs(
             request,
             output: payload,
         }]),
+    });
+
+    // Set correct answer for a question
+    const SetCorrectAnswer = ({ question, option, request }: Vars) => ({
+        when: actions([API.request, {
+            method: "POST",
+            path: "/questions/:question/correct",
+            question,
+            option,
+        }, { request }]),
+        then: actions([Quiz.setCorrectAnswer, { question, option }], [
+            API.response,
+            { request, output: { ok: true } },
+        ]),
+    });
+
+    // Remove correct answer for a question
+    const RemoveCorrectAnswer = ({ question, request }: Vars) => ({
+        when: actions([API.request, {
+            method: "DELETE",
+            path: "/questions/:question/correct",
+            question,
+        }, { request }]),
+        then: actions([Quiz.removeCorrectAnswer, { question }], [
+            API.response,
+            { request, output: { ok: true } },
+        ]),
+    });
+
+    // Show correct answer for an activation
+    const ShowCorrectAnswer = ({ activation, request }: Vars) => ({
+        when: actions([API.request, {
+            method: "POST",
+            path: "/activations/:activation/showcorrect",
+            activation,
+        }, { request }]),
+        then: actions([Activation.showCorrectAnswer, { activation }], [
+            API.response,
+            { request, output: { ok: true } },
+        ]),
+    });
+
+    // Hide correct answer for an activation
+    const HideCorrectAnswer = ({ activation, request }: Vars) => ({
+        when: actions([API.request, {
+            method: "POST",
+            path: "/activations/:activation/hidecorrect",
+            activation,
+        }, { request }]),
+        then: actions([Activation.hideCorrectAnswer, { activation }], [
+            API.response,
+            { request, output: { ok: true } },
+        ]),
     });
 
     return {
@@ -423,5 +482,9 @@ export function makeApiQuizSyncs(
         Choose,
         GetActivation,
         GetDisplay,
+        SetCorrectAnswer,
+        RemoveCorrectAnswer,
+        ShowCorrectAnswer,
+        HideCorrectAnswer,
     } as const;
 }
