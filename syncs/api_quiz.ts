@@ -305,6 +305,15 @@ export function makeApiQuizSyncs(
                         activation: frame[activation] as string,
                     });
                     const byOption = new Map(counts.map((c) => [c.option, c]));
+                    const correctOption = Quiz._getCorrectAnswer({
+                        question: frame[question] as string,
+                    })[0]?.option;
+                    
+                    // Get the current user's vote
+                    const userVote = Activation._getUserVote({
+                        activation: frame[activation] as string,
+                        user: frame.user as string
+                    })[0]?.option;
                     const payloadValue = {
                         activation: frame[activation] as string,
                         quiz: q?.quiz,
@@ -313,6 +322,8 @@ export function makeApiQuizSyncs(
                             text: q?.text ?? "",
                         },
                         showResults: frame[showResults] as boolean,
+                        correctOption,
+                        userVote,
                         options: options.map((o, idx) => ({
                             option: o.option,
                             label: o.label,
@@ -320,6 +331,8 @@ export function makeApiQuizSyncs(
                             count: byOption.get(o.option)?.count ?? 0,
                             total: byOption.get(o.option)?.total ??
                                 (counts[0]?.total ?? 0),
+                            isCorrect: o.option === correctOption,
+                            isUserSelection: o.option === userVote,
                         })),
                     };
                     return {

@@ -12,9 +12,12 @@ const USER_ID = localStorage.getItem("quizzie_user") || (localStorage.setItem("q
 
 const main = document.getElementById("main");
 
+// Track if the user has submitted an answer for the current question
+let userHasSubmitted = false;
+
 function _makeOptionRow(letter, label, option, countText) {
   const row = document.createElement("div"); row.className = "option-row";
-  const circle = document.createElement("span"); circle.className = "circle"; circle.onclick = async () => { await fetchJSON(`/api/activations/${activation}/choose`, { method: "POST", body: JSON.stringify({ option, user: USER_ID }) }); poll(); };
+  const circle = document.createElement("span"); circle.className = "circle"; circle.onclick = async () => { await fetchJSON(`/api/activations/${activation}/choose`, { method: "POST", body: JSON.stringify({ option, user: USER_ID }) }); userHasSubmitted = true; poll(); };
   const l = document.createElement("span"); l.textContent = letter;
   const t = document.createElement("span"); t.textContent = label;
   const c = document.createElement("span"); c.className = "muted"; c.textContent = countText || "";
@@ -35,11 +38,48 @@ async function poll() {
       const list = document.createElement("div"); list.className = "options";
       q.options.forEach((o) => {
         const row = document.createElement("div"); row.className = "option-row";
-        const circle = document.createElement("span"); circle.className = "circle"; circle.onclick = async () => { if (q.activation) await fetchJSON(`/api/activations/${q.activation}/choose`, { method: "POST", body: JSON.stringify({ option: o.option, user: USER_ID }) }); };
+
+        // Apply styling based on correctness if the user has selected this option
+        if (o.isUserSelection && q.userVote) {
+          if (o.isCorrect) {
+            row.classList.add("correct");
+          } else {
+            row.classList.add("incorrect");
+          }
+        }
+        // Highlight the correct answer if the user has submitted an answer
+        else if (q.userVote && o.isCorrect) {
+          row.classList.add("correct");
+        }
+
+        const circle = document.createElement("span");
+        circle.className = "circle";
+        circle.onclick = async () => {
+          if (q.activation) {
+            await fetchJSON(`/api/activations/${q.activation}/choose`, {
+              method: "POST",
+              body: JSON.stringify({ option: o.option, user: USER_ID })
+            });
+            userHasSubmitted = true;
+            poll();
+          }
+        };
+
         const l = document.createElement("span"); l.textContent = o.letter;
         const t = document.createElement("span"); t.textContent = o.label;
         const c = document.createElement("span"); c.className = "muted"; c.textContent = `${o.count}/${o.total}`;
-        row.append(circle, l, t, c); list.append(row);
+
+        // Add feedback icon if user has submitted an answer
+        if (o.isUserSelection && q.userVote) {
+          const feedback = document.createElement("span");
+          feedback.className = "feedback-icon";
+          feedback.textContent = o.isCorrect ? "✓" : "✗";
+          row.append(circle, l, t, feedback, c);
+        } else {
+          row.append(circle, l, t, c);
+        }
+
+        list.append(row);
       });
       section.append(list); main.append(section);
     }
@@ -69,16 +109,72 @@ function renderQuestion(activationData, optionsData, showResults) {
   header.append(share);
   updateQR();
   main.append(header);
+
   const options = document.createElement("div"); options.className = "options";
   optionsData.forEach((o) => {
-    const row = document.createElement("div"); row.className = "option-row";
-    const circle = document.createElement("span"); circle.className = "circle"; circle.onclick = async () => { await fetchJSON(`/api/activations/${activation}/choose`, { method: "POST", body: JSON.stringify({ option: o.option, user: USER_ID }) }); document.querySelectorAll('.option-row').forEach(el => el.classList.remove('selected')); row.classList.add('selected'); poll(); };
+    const row = document.createElement("div");
+    row.className = "option-row";
+
+    // Apply styling based on correctness if the user has submitted an answer
+    if (activationData.userVote) {
+      if (o.isUserSelection) {
+        row.classList.add(o.isCorrect ? "correct" : "incorrect");
+        row.classList.add("selected");
+      } else if (o.isCorrect) {
+        row.classList.add("correct");
+      }
+    }
+
+    const circle = document.createElement("span");
+    circle.className = "circle";
+    circle.onclick = async () => {
+      await fetchJSON(`/api/activations/${activation}/choose`, {
+        method: "POST",
+        body: JSON.stringify({ option: o.option, user: USER_ID })
+      });
+      document.querySelectorAll('.option-row').forEach(el => el.classList.remove('selected'));
+      row.classList.add('selected');
+      userHasSubmitted = true;
+      poll();
+    };
+
     const l = document.createElement("span"); l.textContent = o.letter;
     const t = document.createElement("span"); t.textContent = o.label;
     const c = document.createElement("span"); c.className = "muted"; c.textContent = showResults ? `${o.count}/${o.total}` : "";
-    row.append(circle, l, t, c); options.append(row);
+
+    // Add feedback icon if user has submitted an answer
+    if (activationData.userVote && o.isUserSelection) {
+      const feedback = document.createElement("span");
+      feedback.className = "feedback-icon";
+      feedback.textContent = o.isCorrect ? "✓" : "✗";
+      row.append(circle, l, t, feedback, c);
+    } else {
+      row.append(circle, l, t, c);
+    }
+
+    options.append(row);
   });
   main.append(options);
+
+  // Add feedback message if user has submitted an answer
+  if (activationData.userVote) {
+    const userOption = optionsData.find(o => o.isUserSelection);
+    if (userOption) {
+      const feedbackMsg = document.createElement("div");
+      feedbackMsg.className = "feedback-message";
+
+      if (userOption.isCorrect) {
+        feedbackMsg.textContent = "Correct! Well done!";
+        feedbackMsg.classList.add("correct-message");
+      } else {
+        const correctOption = optionsData.find(o => o.isCorrect);
+        feedbackMsg.textContent = `Incorrect. The correct answer is ${correctOption ? correctOption.letter + ': ' + correctOption.label : 'not available'}.`;
+        feedbackMsg.classList.add("incorrect-message");
+      }
+
+      main.append(feedbackMsg);
+    }
+  }
 
   // Navigation across questions of the same quiz
   if (activationData.quiz) {
@@ -107,6 +203,7 @@ async function navigateSibling(quizId, currentQuestionId, delta, shouldShowResul
     await fetchJSON(`/api/activations/${actId}/show`, { method: "POST" });
   }
   location.href = `/question.html?activation=${actId}`;
+  userHasSubmitted = false; // Reset submission state for new question
 }
 
 async function load() {
@@ -114,5 +211,3 @@ async function load() {
 }
 
 load();
-
-
