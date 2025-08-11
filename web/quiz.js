@@ -59,28 +59,7 @@ async function load() {
   data.questions.forEach((q) => {
     const row = document.createElement("div"); row.className = "question";
     const del = document.createElement("span"); del.textContent = "🗑️"; del.onclick = async () => { await fetchJSON(`/api/questions/${q.question}`, { method: "DELETE" }); load(); };
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = q.text;
-    input.className = "text";
-
-    const saveQuestion = async () => {
-      if (input.value.trim()) {
-        await fetchJSON(`/api/questions/${q.question}`, {
-          method: "PATCH",
-          body: JSON.stringify({ text: input.value })
-        });
-      }
-    };
-
-    input.onchange = saveQuestion;
-    input.onkeydown = (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        input.blur(); // Triggers onchange
-      }
-    };
-
+    const input = document.createElement("input"); input.type = "text"; input.value = q.text; input.className = "text"; input.onchange = async () => { await fetchJSON(`/api/questions/${q.question}`, { method: "PATCH", body: JSON.stringify({ text: input.value }) }); };
     row.append(del, input);
 
     // Add correct answer label
@@ -195,6 +174,7 @@ async function load() {
 
     main.append(row);
   });
+
   const addQ = document.createElement("div");
   addQ.className = "question-row";
   const plus = document.createElement("span");
@@ -202,8 +182,7 @@ async function load() {
   const qinput = document.createElement("input");
   qinput.type = "text";
   qinput.placeholder = "enter text of new question";
-
-  const addQuestion = async () => {
+  plus.onclick = async () => {
     const text = qinput.value.trim();
     if (!text) return;
     await fetchJSON(`/api/quizzes/${quiz}/questions`, {
@@ -213,17 +192,9 @@ async function load() {
     qinput.value = "";
     load();
   };
-
-  plus.onclick = addQuestion;
-  qinput.onkeydown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      addQuestion();
-    }
-  };
   addQ.append(plus, qinput);
   main.append(addQ);
-  await syncActivationButton();
+  await syncButtons();
 }
 
 load();
